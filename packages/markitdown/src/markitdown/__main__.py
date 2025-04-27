@@ -2,13 +2,14 @@
 #
 # SPDX-License-Identifier: MIT
 import argparse
-import sys
 import codecs
-import locale
-from textwrap import dedent
+import io
+import sys
 from importlib.metadata import entry_points
+from textwrap import dedent
+
 from .__about__ import __version__
-from ._markitdown import MarkItDown, StreamInfo, DocumentConverterResult
+from ._markitdown import DocumentConverterResult, MarkItDown, StreamInfo
 
 
 def main():
@@ -188,11 +189,24 @@ def main():
         markitdown = MarkItDown(enable_plugins=args.use_plugins)
 
     if args.filename is None:
-        result = markitdown.convert_stream(
-            sys.stdin.buffer,
-            stream_info=stream_info,
-            keep_data_uris=args.keep_data_uris,
-        )
+        # Read from stdin, handling both text and binary input
+        if extension_hint == ".html" or mime_type_hint == "text/html":
+            # For HTML, read from stdin as text, then convert to binary for processing
+            stdin_content = sys.stdin.read()
+            # Convert text to binary for processing
+            binary_stream = io.BytesIO(stdin_content.encode("utf-8"))
+            result = markitdown.convert_stream(
+                binary_stream,
+                stream_info=stream_info,
+                keep_data_uris=args.keep_data_uris,
+            )
+        else:
+            # For other formats, read as binary
+            result = markitdown.convert_stream(
+                sys.stdin.buffer,
+                stream_info=stream_info,
+                keep_data_uris=args.keep_data_uris,
+            )
     else:
         result = markitdown.convert(
             args.filename, stream_info=stream_info, keep_data_uris=args.keep_data_uris
